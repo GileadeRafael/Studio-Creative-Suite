@@ -1,8 +1,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AspectRatio } from '../types';
 
-// FIX: Per @google/genai coding guidelines, the API key must be obtained
-// exclusively from `process.env.API_KEY` and used directly for initialization.
+if (!process.env.API_KEY) {
+  throw new Error("A variável de ambiente API_KEY está ausente. Defina-a nas configurações do seu projeto Vercel.");
+}
+
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const fileToBase64 = (file: File): Promise<string> => {
@@ -32,11 +34,11 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
     if (response.generatedImages && response.generatedImages.length > 0) {
       return response.generatedImages.map(img => `data:image/jpeg;base64,${img.image.imageBytes}`);
     } else {
-      throw new Error("Image generation failed, no images returned.");
+      throw new Error("A geração de imagem falhou, nenhuma imagem foi retornada.");
     }
   } catch (error) {
-    console.error("Error generating image with Gemini:", error);
-    throw new Error("Failed to generate image. Please check your prompt or API key.");
+    console.error("Erro ao gerar imagem com o Gemini:", error);
+    throw new Error("Falha ao gerar a imagem. Verifique seu prompt ou a chave da API.");
   }
 };
 
@@ -68,10 +70,10 @@ export const editImage = async (prompt: string, referenceImages: {data: string, 
             const mimeType = imagePart.inlineData.mimeType;
             return `data:${mimeType};base64,${base64ImageBytes}`;
         } else {
-            throw new Error("Image editing failed, no image part returned.");
+            throw new Error("A edição de imagem falhou, nenhuma parte da imagem foi retornada.");
         }
     } catch (error) {
-        console.error("Error editing image with Gemini:", error);
-        throw new Error("Failed to edit image. Please check your prompt, reference image, or API key.");
+        console.error("Erro ao editar imagem com o Gemini:", error);
+        throw new Error("Falha ao editar a imagem. Verifique seu prompt, imagem de referência ou chave da API.");
     }
 };

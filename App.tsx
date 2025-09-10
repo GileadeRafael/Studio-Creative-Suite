@@ -7,6 +7,7 @@ import { Loader } from './components/Loader';
 import { Modal } from './components/Modal';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
+import { ConfigurationError } from './components/ConfigurationError';
 import { generateImage as generateImageFromApi, editImage, fileToBase64 } from './services/geminiService';
 import { GeneratedImage, AspectRatio } from './types';
 
@@ -188,6 +189,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   const clientId = "67218961121-2j1h6tdill2f146tn8os4f05s0jv5euk.apps.googleusercontent.com";
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    return <ConfigurationError />;
+  }
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
