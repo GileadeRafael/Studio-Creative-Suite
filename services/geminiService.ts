@@ -1,16 +1,29 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AspectRatio } from '../types';
 
-// A verificação inicial foi removida daqui para evitar um travamento imediato do aplicativo.
-// A lógica de verificação agora está centralizada e de forma segura no componente App.tsx.
+// Singleton instance of the AI client
+let aiInstance: GoogleGenAI | null = null;
 
-const apiKey = process.env.API_KEY;
+/**
+ * Lazily initializes and returns the GoogleGenAI instance.
+ * This prevents the app from crashing on load if the API key is missing.
+ * @returns {GoogleGenAI} The initialized GoogleGenAI client.
+ * @throws {Error} If the VITE_API_KEY environment variable is not set.
+ */
+const getAiClient = (): GoogleGenAI => {
+    const apiKey = process.env.VITE_API_KEY;
 
-if (!apiKey) {
-  console.error("A variável de ambiente API_KEY está ausente. O aplicativo renderizará a página de erro de configuração.");
-}
+    if (!apiKey) {
+        throw new Error("A variável de ambiente VITE_API_KEY está ausente. Por favor, configure-a nas suas configurações do Vercel.");
+    }
 
-const ai = new GoogleGenAI({ apiKey: apiKey });
+    if (!aiInstance) {
+        aiInstance = new GoogleGenAI({ apiKey });
+    }
+    return aiInstance;
+};
+
 
 export const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -25,8 +38,8 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const generateImage = async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number): Promise<string[]> => {
-  if (!apiKey) throw new Error("A chave da API do Gemini não está configurada.");
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
       prompt: prompt,
@@ -44,13 +57,13 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
     }
   } catch (error) {
     console.error("Erro ao gerar imagem com o Gemini:", error);
-    throw new Error("Falha ao gerar a imagem. Verifique seu prompt ou a chave da API.");
+    throw new Error(`Falha ao gerar a imagem. ${error.message.includes("API key not valid") ? "Sua chave de API parece ser inválida." : "Verifique seu prompt e tente novamente."}`);
   }
 };
 
 export const editImage = async (prompt: string, referenceImages: {data: string, mimeType: string}[]): Promise<string> => {
-    if (!apiKey) throw new Error("A chave da API do Gemini não está configurada.");
     try {
+        const ai = getAiClient();
         const imageParts = referenceImages.map(image => ({
             inlineData: {
                 data: image.data,
@@ -81,6 +94,6 @@ export const editImage = async (prompt: string, referenceImages: {data: string, 
         }
     } catch (error) {
         console.error("Erro ao editar imagem com o Gemini:", error);
-        throw new Error("Falha ao editar a imagem. Verifique seu prompt, imagem de referência ou chave da API.");
+        throw new Error(`Falha ao editar a imagem. ${error.message.includes("API key not valid") ? "Sua chave de API parece ser inválida." : "Verifique seu prompt e tente novamente."}`);
     }
 };

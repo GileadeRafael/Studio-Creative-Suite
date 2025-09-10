@@ -189,7 +189,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   const clientId = "67218961121-2j1h6tdill2f146tn8os4f05s0jv5euk.apps.googleusercontent.com";
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.VITE_API_KEY;
 
   if (!apiKey) {
     return <ConfigurationError />;
