@@ -37,8 +37,10 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const generateImage = async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number): Promise<string[]> => {
+  // Moved out of try-catch: Let config errors propagate to the UI.
+  const ai = getAiClient();
+  
   try {
-    const ai = getAiClient();
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
       prompt: prompt,
@@ -61,8 +63,10 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
 };
 
 export const editImage = async (prompt: string, referenceImages: {data: string, mimeType: string}[]): Promise<string> => {
+    // Moved out of try-catch: Let config errors propagate to the UI.
+    const ai = getAiClient();
+    
     try {
-        const ai = getAiClient();
         const imageParts = referenceImages.map(image => ({
             inlineData: {
                 data: image.data,
