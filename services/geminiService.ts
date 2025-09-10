@@ -1,11 +1,16 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AspectRatio } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("A variável de ambiente API_KEY está ausente. Defina-a nas configurações do seu projeto Vercel.");
+// A verificação inicial foi removida daqui para evitar um travamento imediato do aplicativo.
+// A lógica de verificação agora está centralizada e de forma segura no componente App.tsx.
+
+const apiKey = process.env.API_KEY;
+
+if (!apiKey) {
+  console.error("A variável de ambiente API_KEY está ausente. O aplicativo renderizará a página de erro de configuração.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 export const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -20,6 +25,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const generateImage = async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number): Promise<string[]> => {
+  if (!apiKey) throw new Error("A chave da API do Gemini não está configurada.");
   try {
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
@@ -43,6 +49,7 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
 };
 
 export const editImage = async (prompt: string, referenceImages: {data: string, mimeType: string}[]): Promise<string> => {
+    if (!apiKey) throw new Error("A chave da API do Gemini não está configurada.");
     try {
         const imageParts = referenceImages.map(image => ({
             inlineData: {
