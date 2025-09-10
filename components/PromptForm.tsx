@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { STYLE_SUGGESTIONS } from '../constants';
 import { AspectRatio } from '../types';
@@ -11,7 +10,7 @@ interface PromptFormProps {
 export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading }) => {
   const [prompt, setPrompt] = useState<string>('');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.SQUARE);
-  const [numberOfImages, setNumberOfImages] = useState<number>(1);
+  const [numberOfImages, setNumberOfImages] = useState(1);
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -43,6 +42,8 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setReferenceFiles(Array.from(e.target.files));
+      // No modo de edição, sempre geramos 1 imagem
+      setNumberOfImages(1); 
     }
   };
   
@@ -63,7 +64,7 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="relative bg-zinc-900 p-3 rounded-xl shadow-2xl">
       <div className="flex items-center gap-3">
-        <label htmlFor="file-upload" className="p-2.5 bg-zinc-900 hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors">
+        <label htmlFor="file-upload" className="p-2.5 bg-zinc-900 hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors" title="Enviar imagem para editar">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         </label>
         <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*"/>
@@ -82,7 +83,7 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
           id="prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={hasReferenceImages ? "Describe the edit you want to make..." : "A majestic cat astronaut floating in space..."}
+          placeholder={hasReferenceImages ? "Descreva a edição desejada..." : "Descreva a imagem que você quer criar..."}
           className="flex-1 w-full bg-zinc-900 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-zinc-500 transition-shadow border-none placeholder-zinc-500"
         />
 
@@ -90,8 +91,8 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
              {showSettings && (
                 <div className="absolute bottom-full right-0 mb-3 bg-zinc-800 rounded-lg p-4 shadow-lg border border-zinc-700 space-y-4 w-96">
                     <div>
-                        <label className={`block text-sm font-medium mb-2 ${hasReferenceImages ? 'text-gray-500' : 'text-gray-300'}`}>
-                            Number of Images {hasReferenceImages && "(edit mode)"}
+                        <label className="block text-sm font-medium mb-2 text-gray-300" title={hasReferenceImages ? "A edição de imagem sempre produz uma única imagem." : ""}>
+                            Number of Images
                         </label>
                         <div className="flex space-x-2">
                           {[1, 2, 3, 4].map(num => (
@@ -100,7 +101,7 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
                               type="button"
                               onClick={() => setNumberOfImages(num)}
                               disabled={hasReferenceImages}
-                              className={`w-full p-2 rounded-md text-sm font-medium transition-colors ${numberOfImages === num ? 'bg-zinc-600 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-gray-200'} disabled:bg-zinc-700/50 disabled:text-gray-400 disabled:cursor-not-allowed`}
+                              className={`w-full p-2 rounded-md text-sm font-medium transition-colors ${numberOfImages === num ? 'bg-zinc-600 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-gray-300'} disabled:bg-zinc-700/50 disabled:text-gray-400 disabled:cursor-not-allowed`}
                             >
                               {num}
                             </button>
@@ -108,14 +109,14 @@ export const PromptForm: React.FC<PromptFormProps> = ({ onGenerate, isLoading })
                         </div>
                     </div>
                     <div>
-                        <label htmlFor="aspect-ratio" className={`block text-sm font-medium mb-2 ${hasReferenceImages ? 'text-gray-500' : 'text-gray-300'}`}>
-                            Aspect Ratio {hasReferenceImages && "(from image)"}
+                        <label className="block text-sm font-medium mb-2 text-gray-300" title={hasReferenceImages ? "A proporção é herdada da imagem enviada." : ""}>
+                            Aspect Ratio
                         </label>
                         <select 
                             id="aspect-ratio"
                             value={aspectRatio}
                             onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
-                            className="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 text-white focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500 transition-shadow disabled:bg-zinc-700/50 disabled:text-gray-400"
+                            className="w-full bg-zinc-700 border border-zinc-600 rounded-lg p-2 text-white focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500 transition-shadow disabled:bg-zinc-700/50 disabled:text-gray-400 disabled:cursor-not-allowed"
                             disabled={hasReferenceImages}
                         >
                             <option value={AspectRatio.SQUARE}>Square (1:1)</option>

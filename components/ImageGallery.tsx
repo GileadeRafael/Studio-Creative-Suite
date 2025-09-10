@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ImageCard } from './ImageCard';
 import { GeneratedImage } from '../types';
@@ -14,9 +13,9 @@ interface ImageGalleryProps {
 export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, onDelete, onToggleFavorite, view }) => {
   if (images.length === 0) {
     const isAllView = view === 'all';
-    const title = isAllView ? "Your Creations Appear Here" : "Your Library is Empty";
+    const title = isAllView ? "Your Creative Canvas Awaits" : "Your Library is Empty";
     const message = isAllView 
-      ? "Use the bar below to enter a prompt, upload a reference, or mix both to start your creative journey. The AI will weave your words into unique visual art."
+      ? "Use the bar below to enter a prompt or upload an image to start your creative journey. The AI will weave your words into unique visual masterpieces."
       : "Favorite an image by clicking the heart icon to add it to your personal library.";
       
     return (

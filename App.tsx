@@ -6,7 +6,7 @@ import { Modal } from './components/Modal';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
-import { generateImage as generateImageFromApi, editImage, fileToBase64 } from './services/geminiService';
+import { generateImage, editImage, fileToBase64 } from './services/geminiService';
 import { authService } from './services/authService';
 import { GeneratedImage, AspectRatio, User } from './types';
 
@@ -57,10 +57,10 @@ const AppContent: React.FC = () => {
   const handleGenerate = useCallback(async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number, options: GenerationOptions) => {
     setIsLoading(true);
     setError(null);
-    try {
-      let imageUrls: string[];
-      let referenceImages: { data: string; mimeType: string }[] | undefined = undefined;
 
+    try {
+      let referenceImages: { data: string; mimeType: string }[] | undefined = undefined;
+      
       if (options.files && options.files.length > 0) {
         referenceImages = await Promise.all(
           options.files.map(async (file) => ({
@@ -68,24 +68,35 @@ const AppContent: React.FC = () => {
             mimeType: file.type,
           }))
         );
-        imageUrls = [await editImage(prompt, referenceImages)];
       } else if (options.referenceImages && options.referenceImages.length > 0) {
         referenceImages = options.referenceImages;
-        imageUrls = [await editImage(prompt, referenceImages)];
-      } else {
-        imageUrls = await generateImageFromApi(prompt, aspectRatio, numberOfImages);
       }
-      
-      const newImages: GeneratedImage[] = imageUrls.map(url => ({
-        id: new Date().toISOString() + Math.random(),
-        url: url,
-        prompt: prompt,
-        aspectRatio: aspectRatio,
-        referenceImages: referenceImages,
-        isFavorite: false,
-      }));
 
-      setGeneratedImages(prevImages => [...newImages, ...prevImages]);
+      if (referenceImages) {
+        // Modo de Edição
+        const imageUrl = await editImage(prompt, referenceImages);
+        const newImage: GeneratedImage = {
+          id: new Date().toISOString() + Math.random(),
+          url: imageUrl,
+          prompt: prompt,
+          aspectRatio: aspectRatio,
+          referenceImages: referenceImages,
+          isFavorite: false,
+        };
+        setGeneratedImages(prevImages => [newImage, ...prevImages]);
+      } else {
+        // Modo de Geração
+        const imageUrls = await generateImage(prompt, aspectRatio, numberOfImages);
+        const newImages: GeneratedImage[] = imageUrls.map(url => ({
+          id: new Date().toISOString() + Math.random(),
+          url: url,
+          prompt: prompt,
+          aspectRatio: aspectRatio,
+          isFavorite: false,
+        }));
+        setGeneratedImages(prevImages => [...newImages, ...prevImages]);
+      }
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       console.error(err);
@@ -96,8 +107,14 @@ const AppContent: React.FC = () => {
 
   const handleCreateVariation = useCallback((image: GeneratedImage) => {
     setSelectedImage(null);
-    handleGenerate(image.prompt, image.aspectRatio, 1, { referenceImages: image.referenceImages });
+    if (image.referenceImages && image.referenceImages.length > 0) {
+        handleGenerate(image.prompt, image.aspectRatio, 1, { referenceImages: image.referenceImages });
+    } else {
+        // Se não houver imagem de referência, trata-se de uma nova geração a partir do mesmo prompt.
+        handleGenerate(image.prompt, image.aspectRatio, 1, {});
+    }
   }, [handleGenerate]);
+
 
   const handleDeleteImage = useCallback((id: string) => {
     setGeneratedImages(prev => prev.filter(image => image.id !== id));
