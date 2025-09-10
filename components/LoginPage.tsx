@@ -1,70 +1,103 @@
-import React, { useEffect, useState } from 'react';
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import React, { useState } from 'react';
+import { authService } from '../services/authService';
+import { User } from '../types';
 
 interface LoginPageProps {
-  onLogin: (credentialResponse: CredentialResponse) => void;
+  onLogin: (user: User) => void;
+  onNavigateToSignup: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [loginError, setLoginError] = useState<string | null>(null);
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignup }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleError = () => {
-    console.error('Login Failed. This is often a configuration issue in your Google Cloud Console.');
-    setLoginError(
-      "O login falhou. Verifique a configuração do seu Google Client ID."
-    );
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const user = authService.login(email, password);
+      onLogin(user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <div className="w-full flex md:grid md:grid-cols-2">
-        {/* Left Column: Gradient and branding */}
-        <div className="hidden md:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-zinc-900 to-indigo-900/50 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-grid-zinc-800/20 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
-            <div className="relative z-10">
-                <img src="https://framerusercontent.com/images/CHVGn1yl906NV0lL0JCifCk1as.png" alt="Studio Logo" className="w-20 h-20 mx-auto mb-6 drop-shadow-lg" />
-                <h1 className="text-5xl font-bold text-white tracking-tight">Crie o impossível.</h1>
-                <p className="mt-4 text-lg text-zinc-400 max-w-sm mx-auto">Sua imaginação é o único limite. Dê vida às suas ideias com o poder da IA.</p>
-            </div>
-        </div>
-
-        {/* Right Column: Login Form */}
-        <div className="w-full flex flex-col items-center justify-center p-8">
-            <div className="w-full max-w-md mx-auto text-center">
-                <div className="md:hidden flex items-center justify-center mb-8">
-                    <img src="https://framerusercontent.com/images/CHVGn1yl906NV0lL0JCifCk1as.png" alt="Studio Logo" className="w-12 h-12 mr-4" />
-                </div>
-                
-                <h2 className="text-3xl font-bold text-gray-100 mb-2">Bem-vindo(a) de volta</h2>
-                <p className="text-gray-400 mb-8">Entre com sua conta Google para continuar.</p>
-                
-                <div className="flex justify-center">
-                    <GoogleLogin
-                        onSuccess={onLogin}
-                        onError={handleError}
-                        theme="filled_black"
-                        text="signin_with"
-                        shape="pill"
-                        logo_alignment="left"
-                    />
-                </div>
-                
-                {loginError && (
-                  <div className="mt-8 p-4 bg-zinc-900 border border-zinc-700 rounded-lg text-left text-sm text-red-400">
-                    <p>{loginError}</p>
-                  </div>
-                )}
-            </div>
+      <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-indigo-900/50 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-zinc-800/20 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
+        <div className="relative z-10">
+            <h1 className="text-6xl font-bold text-white tracking-tight">Crie o impossível.</h1>
+            <p className="mt-4 text-xl text-zinc-400 max-w-lg mx-auto">Sua imaginação é o único limite. Dê vida às suas ideias com o poder da IA.</p>
         </div>
       </div>
-      <style>
-        {`
-          .bg-grid-zinc-800\\/20 {
-            background-image: linear-gradient(to right, rgba(40, 40, 45, 0.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(40, 40, 45, 0.5) 1px, transparent 1px);
-            background-size: 3rem 3rem;
-          }
-        `}
-      </style>
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8">
+        <div className="w-full max-w-md mx-auto">
+          <div className="text-center mb-10">
+            <img src="https://framerusercontent.com/images/CHVGn1yl906NV0lL0JCifCk1as.png" alt="Studio Logo" className="w-16 h-16 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-gray-100">Bem-vindo(a) de volta</h2>
+            <p className="text-gray-400">Entre com sua conta para continuar.</p>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-400">E-mail</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-baseline">
+                <label htmlFor="password"className="block text-sm font-medium text-gray-400">Senha</label>
+                <a href="#" className="text-sm text-indigo-400 hover:text-indigo-300">Esqueceu a senha?</a>
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Entrando...' : 'Login'}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-gray-400">
+            Não tem uma conta?{' '}
+            <button onClick={onNavigateToSignup} className="font-medium text-indigo-400 hover:text-indigo-300">
+              Cadastre-se
+            </button>
+          </p>
+        </div>
+      </div>
+       <style>{`.bg-grid-zinc-800\\/20 { background-image: linear-gradient(to right, rgba(40, 40, 45, 0.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(40, 40, 45, 0.5) 1px, transparent 1px); background-size: 3rem 3rem; }`}</style>
     </div>
   );
 };

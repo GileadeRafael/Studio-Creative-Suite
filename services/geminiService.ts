@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AspectRatio } from '../types';
 
@@ -9,13 +8,13 @@ let aiInstance: GoogleGenAI | null = null;
  * Lazily initializes and returns the GoogleGenAI instance.
  * This prevents the app from crashing on load if the API key is missing.
  * @returns {GoogleGenAI} The initialized GoogleGenAI client.
- * @throws {Error} If the VITE_API_KEY environment variable is not set.
+ * @throws {Error} If the API_KEY environment variable is not set.
  */
 const getAiClient = (): GoogleGenAI => {
-    const apiKey = process.env.VITE_API_KEY;
+    const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
-        throw new Error("A variável de ambiente VITE_API_KEY está ausente. Por favor, configure-a nas suas configurações do Vercel.");
+        throw new Error("A variável de ambiente API_KEY está ausente. Por favor, configure-a.");
     }
 
     if (!aiInstance) {

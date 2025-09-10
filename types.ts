@@ -1,3 +1,13 @@
+// The build environment is expected to provide process.env.
+// This is a type definition for TypeScript to prevent compilation errors.
+// FIX: Augment the NodeJS.ProcessEnv interface instead of redeclaring the global 'process' variable to avoid type conflicts.
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      API_KEY: string;
+    }
+  }
+}
 
 export enum AspectRatio {
   SQUARE = '1:1',
@@ -17,4 +27,11 @@ export interface GeneratedImage {
     data: string;
     mimeType: string;
   }[];
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  photoURL: string;
 }

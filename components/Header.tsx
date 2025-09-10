@@ -1,11 +1,6 @@
-
 import React, { useState } from 'react';
 import { UserMenu } from './UserMenu';
-
-interface User {
-  name: string;
-  photoURL: string;
-}
+import { User } from '../types';
 
 interface HeaderProps {
   user: User;
@@ -32,8 +27,8 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout, onShowLibrary, o
                   aria-haspopup="true"
                   aria-expanded={isMenuOpen}
                 >
-                    <img src={user.photoURL} alt={`Profile picture for ${user.name}`} className="w-8 h-8 rounded-full ring-1 ring-zinc-600"/>
-                    <span className="text-white font-medium text-sm hidden sm:block">{user.name}</span>
+                    <img src={user.photoURL} alt={`Profile picture for ${user.username}`} className="w-8 h-8 rounded-full ring-1 ring-zinc-600 object-cover"/>
+                    <span className="text-white font-medium text-sm hidden sm:block">{user.username}</span>
                 </button>
                 {isMenuOpen && <UserMenu onLogout={onLogout} onShowLibrary={onShowLibrary} onClose={() => setIsMenuOpen(false)} />}
               </div>

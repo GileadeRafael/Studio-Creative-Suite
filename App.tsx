@@ -1,37 +1,23 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { GoogleOAuthProvider, CredentialResponse } from '@react-oauth/google';
 import { PromptForm } from './components/PromptForm';
 import { ImageGallery } from './components/ImageGallery';
 import { Loader } from './components/Loader';
 import { Modal } from './components/Modal';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
+import { SignupPage } from './components/SignupPage';
 import { ConfigurationError } from './components/ConfigurationError';
 import { generateImage as generateImageFromApi, editImage, fileToBase64 } from './services/geminiService';
-import { GeneratedImage, AspectRatio } from './types';
-
-interface User {
-  name: string;
-  email: string;
-  photoURL: string;
-}
+import { authService } from './services/authService';
+import { GeneratedImage, AspectRatio, User } from './types';
 
 interface GenerationOptions {
   files?: File[];
   referenceImages?: { data: string; mimeType: string }[];
 }
 
-const decodeJwt = (token: string) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    console.error("Error decoding JWT", e);
-    return null;
-  }
-};
-
 const AppContent: React.FC = () => {
+  const [view, setView] = useState<'login' | 'signup' | 'app'>('login');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,19 +26,9 @@ const AppContent: React.FC = () => {
   const [galleryView, setGalleryView] = useState<'all' | 'favorites'>('all');
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('studio-currentUser');
-      if (storedUser) {
-        const user: User = JSON.parse(storedUser);
-        setCurrentUser(user);
-        const userImages = localStorage.getItem(`studio-images-${user.email}`);
-        if (userImages) {
-          setGeneratedImages(JSON.parse(userImages));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('studio-currentUser');
+    const user = authService.getCurrentUser();
+    if (user) {
+      handleLogin(user);
     }
   }, []);
 
@@ -62,32 +38,23 @@ const AppContent: React.FC = () => {
     }
   }, [generatedImages, currentUser]);
 
-  const handleLogin = (credentialResponse: CredentialResponse) => {
-    if (credentialResponse.credential) {
-      const decoded: { name: string; email: string; picture: string; } | null = decodeJwt(credentialResponse.credential);
-      if (decoded) {
-        const user: User = {
-          name: decoded.name,
-          email: decoded.email,
-          photoURL: decoded.picture,
-        };
-        setCurrentUser(user);
-        localStorage.setItem('studio-currentUser', JSON.stringify(user));
-        const userImages = localStorage.getItem(`studio-images-${user.email}`);
-        setGeneratedImages(userImages ? JSON.parse(userImages) : []);
-      }
-    }
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    const userImages = localStorage.getItem(`studio-images-${user.email}`);
+    setGeneratedImages(userImages ? JSON.parse(userImages) : []);
+    setView('app');
   };
 
   const handleLogout = () => {
     if (currentUser) {
       localStorage.setItem(`studio-images-${currentUser.email}`, JSON.stringify(generatedImages));
     }
+    authService.logout();
     setCurrentUser(null);
     setGeneratedImages([]);
-    localStorage.removeItem('studio-currentUser');
+    setView('login');
   };
-
+  
   const handleGenerate = useCallback(async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number, options: GenerationOptions) => {
     setIsLoading(true);
     setError(null);
@@ -143,11 +110,16 @@ const AppContent: React.FC = () => {
     ));
   }, []);
 
+  if (view === 'login') {
+    return <LoginPage onLogin={handleLogin} onNavigateToSignup={() => setView('signup')} />;
+  }
+  if (view === 'signup') {
+    return <SignupPage onSignup={handleLogin} onNavigateToLogin={() => setView('login')} />;
+  }
+
   return (
     <>
-      {!currentUser ? (
-        <LoginPage onLogin={handleLogin} />
-      ) : (
+      {currentUser && (
         <div className="flex flex-col h-screen bg-black text-gray-100">
           {isLoading && <Loader />}
           {selectedImage && (
@@ -188,18 +160,13 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const clientId = "67218961121-2j1h6tdill2f146tn8os4f05s0jv5euk.apps.googleusercontent.com";
-  const apiKey = process.env.VITE_API_KEY;
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
     return <ConfigurationError />;
   }
 
-  return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <AppContent />
-    </GoogleOAuthProvider>
-  );
+  return <AppContent />;
 };
 
 export default App;

@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const ConfigurationError: React.FC = () => {
@@ -12,26 +11,26 @@ export const ConfigurationError: React.FC = () => {
         </div>
         <h1 className="mt-6 text-3xl font-bold text-white">Configuração Necessária</h1>
         <p className="mt-4 text-zinc-400">
-          Este aplicativo requer uma chave de API do Gemini para funcionar. Para fins de segurança, a chave deve ser nomeada corretamente para ser incluída no site.
+          Este aplicativo requer uma chave de API do Gemini para funcionar. A chave deve ser fornecida como uma variável de ambiente chamada <code className="rounded bg-zinc-700 px-2 py-1 text-sm font-mono text-amber-400">API_KEY</code>.
         </p>
         
         <div className="mt-8 text-left rounded-lg bg-zinc-800/50 border border-zinc-700 p-6">
             <h2 className="text-lg font-semibold text-white">Como resolver:</h2>
             <ol className="mt-4 list-decimal space-y-3 pl-6 text-zinc-300">
                 <li>
-                    Acesse as configurações (<strong>Settings</strong>) do seu projeto no Vercel.
+                    Acesse as configurações (<strong>Settings</strong>) do seu projeto no seu provedor de hospedagem (por exemplo, Vercel).
                 </li>
                 <li>
-                    Navegue até a seção <strong>Environment Variables</strong>.
+                    Navegue até a seção <strong>Environment Variables</strong> (Variáveis de Ambiente).
                 </li>
                 <li>
-                    Crie (ou renomeie a existente) uma variável com o nome (<strong>Name</strong>) <code className="rounded bg-zinc-700 px-2 py-1 text-sm font-mono text-amber-400">VITE_API_KEY</code>. O prefixo <code className="rounded bg-zinc-700 px-1 font-mono text-amber-400">VITE_</code> é obrigatório.
+                    Crie uma nova variável com o nome (<strong>Name</strong>) <code className="rounded bg-zinc-700 px-2 py-1 text-sm font-mono text-amber-400">API_KEY</code>.
                 </li>
                 <li>
                     Cole sua chave secreta da API do Gemini no campo de valor (<strong>Value</strong>).
                 </li>
                 <li>
-                    Salve a variável e faça o <strong>Redeploy</strong> da sua aplicação (vá para a aba "Deployments" e use a opção "Redeploy" no último deploy).
+                    Salve a variável e faça o <strong>Redeploy</strong> da sua aplicação para que a alteração tenha efeito.
                 </li>
             </ol>
         </div>
