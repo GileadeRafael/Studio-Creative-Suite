@@ -8,14 +8,15 @@ let aiInstance: GoogleGenAI | null = null;
  * Lazily initializes and returns the GoogleGenAI instance.
  * This prevents the app from crashing on load if the API key is missing.
  * @returns {GoogleGenAI} The initialized GoogleGenAI client.
- * @throws {Error} If the VITE_API_KEY environment variable is not set.
+ * @throws {Error} If the API_KEY environment variable is not set.
  */
 const getAiClient = (): GoogleGenAI => {
-    // Vite exposes client-safe env variables on `import.meta.env`
-    const apiKey = import.meta.env.VITE_API_KEY;
+    // FIX: Switched from import.meta.env.VITE_API_KEY to process.env.API_KEY to follow the Gemini API guidelines.
+    // This resolves the "Property 'env' does not exist on type 'ImportMeta'" error.
+    const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
-        throw new Error("A variável de ambiente VITE_API_KEY está ausente. Por favor, configure-a.");
+        throw new Error("A variável de ambiente API_KEY está ausente. Por favor, configure-a.");
     }
 
     if (!aiInstance) {
@@ -59,8 +60,15 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
     }
   } catch (error) {
     console.error("Erro ao gerar imagem com o Gemini:", error);
-    if (error instanceof Error && (error.message.toLowerCase().includes("api key not valid") || error.message.toLowerCase().includes("permission denied"))) {
-        throw new Error("Falha na autenticação. Verifique se sua VITE_API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+    if (error instanceof Error) {
+        const lowerCaseMessage = error.message.toLowerCase();
+        if (lowerCaseMessage.includes("api key not valid") || lowerCaseMessage.includes("permission denied")) {
+            // FIX: Updated error message to refer to API_KEY to align with API key handling changes.
+            throw new Error("Falha na autenticação. Verifique se sua API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+        }
+        if (lowerCaseMessage.includes("billed users")) {
+            throw new Error("A API de Imagens do Google requer uma conta de faturamento ativa. Por favor, habilite o faturamento no seu projeto do Google Cloud para usar este recurso.");
+        }
     }
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Falha ao gerar a imagem. Detalhe: ${errorMessage}`);
@@ -102,8 +110,9 @@ export const editImage = async (prompt: string, referenceImages: {data: string, 
         }
     } catch (error) {
         console.error("Erro ao editar imagem com o Gemini:", error);
+        // FIX: Updated error message to refer to API_KEY to align with API key handling changes.
         if (error instanceof Error && (error.message.toLowerCase().includes("api key not valid") || error.message.toLowerCase().includes("permission denied"))) {
-            throw new Error("Falha na autenticação. Verifique se sua VITE_API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+            throw new Error("Falha na autenticação. Verifique se sua API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
         }
         const errorMessage = error instanceof Error ? error.message : String(error);
         throw new Error(`Falha ao editar a imagem. Detalhe: ${errorMessage}`);

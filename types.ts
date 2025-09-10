@@ -1,12 +1,13 @@
 // As definições de tipo para import.meta.env são manipuladas pelo Vite.
 // Manter esta declaração pode causar conflitos ou confusão.
-// declare global {
-//   namespace NodeJS {
-//     interface ProcessEnv {
-//       API_KEY: string;
-//     }
-//   }
-// }
+// FIX: Uncommented to provide type definitions for process.env, which is now used for the API key as per guidelines.
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      API_KEY: string;
+    }
+  }
+}
 
 export enum AspectRatio {
   SQUARE = '1:1',
