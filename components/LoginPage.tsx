@@ -29,7 +29,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-indigo-900/50 text-center relative overflow-hidden">
+      <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-red-900/50 text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-zinc-800/20 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
         <div className="relative z-10">
             <h1 className="text-6xl font-bold text-white tracking-tight">Crie o impossível.</h1>
@@ -55,14 +55,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-red-500 focus:border-red-500"
               />
             </div>
             
             <div>
               <div className="flex justify-between items-baseline">
                 <label htmlFor="password"className="block text-sm font-medium text-gray-400">Senha</label>
-                <a href="#" className="text-sm text-indigo-400 hover:text-indigo-300">Esqueceu a senha?</a>
+                <a href="#" className="text-sm text-red-400 hover:text-red-300">Esqueceu a senha?</a>
               </div>
               <input
                 id="password"
@@ -72,7 +72,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-red-500 focus:border-red-500"
               />
             </div>
 
@@ -82,7 +82,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-red-500 disabled:bg-red-800 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Entrando...' : 'Login'}
               </button>
@@ -91,7 +91,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
 
           <p className="mt-8 text-center text-sm text-gray-400">
             Não tem uma conta?{' '}
-            <button onClick={onNavigateToSignup} className="font-medium text-indigo-400 hover:text-indigo-300">
+            <button onClick={onNavigateToSignup} className="font-medium text-red-400 hover:text-red-300">
               Cadastre-se
             </button>
           </p>

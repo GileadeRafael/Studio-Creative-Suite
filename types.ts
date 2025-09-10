@@ -1,13 +1,12 @@
-// The build environment is expected to provide process.env.
-// This is a type definition for TypeScript to prevent compilation errors.
-// FIX: Augment the NodeJS.ProcessEnv interface instead of redeclaring the global 'process' variable to avoid type conflicts.
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      API_KEY: string;
-    }
-  }
-}
+// As definições de tipo para import.meta.env são manipuladas pelo Vite.
+// Manter esta declaração pode causar conflitos ou confusão.
+// declare global {
+//   namespace NodeJS {
+//     interface ProcessEnv {
+//       API_KEY: string;
+//     }
+//   }
+// }
 
 export enum AspectRatio {
   SQUARE = '1:1',

@@ -56,7 +56,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-indigo-900/50 text-center relative overflow-hidden">
+      <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-red-900/50 text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-zinc-800/20 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
         <div className="relative z-10">
             <h1 className="text-6xl font-bold text-white tracking-tight">Comece sua jornada.</h1>
@@ -80,7 +80,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     )}
                 </div>
-                <label htmlFor="photo-upload" className="cursor-pointer text-sm font-medium text-indigo-400 hover:text-indigo-300">
+                <label htmlFor="photo-upload" className="cursor-pointer text-sm font-medium text-red-400 hover:text-red-300">
                     Escolher foto
                     <input id="photo-upload" name="photo-upload" type="file" className="sr-only" onChange={handlePhotoChange} accept="image/*" />
                 </label>
@@ -88,23 +88,23 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
 
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-400">Nome de usuário</label>
-              <input id="username" name="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <input id="username" name="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-red-500 focus:border-red-500" />
             </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-400">E-mail</label>
-              <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-red-500 focus:border-red-500" />
             </div>
             
             <div>
               <label htmlFor="password"className="block text-sm font-medium text-gray-400">Senha</label>
-              <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 block w-full bg-zinc-800 border-zinc-700 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-red-500 focus:border-red-500" />
             </div>
 
             {error && <p className="text-sm text-red-400 text-center">{error}</p>}
 
             <div>
-              <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed">
+              <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-red-500 disabled:bg-red-800 disabled:cursor-not-allowed">
                 {isLoading ? 'Criando conta...' : 'Cadastrar'}
               </button>
             </div>
@@ -112,7 +112,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
 
           <p className="mt-8 text-center text-sm text-gray-400">
             Já tem uma conta?{' '}
-            <button onClick={onNavigateToLogin} className="font-medium text-indigo-400 hover:text-indigo-300">
+            <button onClick={onNavigateToLogin} className="font-medium text-red-400 hover:text-red-300">
               Faça o login
             </button>
           </p>

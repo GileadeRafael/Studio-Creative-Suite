@@ -8,13 +8,14 @@ let aiInstance: GoogleGenAI | null = null;
  * Lazily initializes and returns the GoogleGenAI instance.
  * This prevents the app from crashing on load if the API key is missing.
  * @returns {GoogleGenAI} The initialized GoogleGenAI client.
- * @throws {Error} If the API_KEY environment variable is not set.
+ * @throws {Error} If the VITE_API_KEY environment variable is not set.
  */
 const getAiClient = (): GoogleGenAI => {
-    const apiKey = process.env.API_KEY;
+    // Vite exposes client-safe env variables on `import.meta.env`
+    const apiKey = import.meta.env.VITE_API_KEY;
 
     if (!apiKey) {
-        throw new Error("A variável de ambiente API_KEY está ausente. Por favor, configure-a.");
+        throw new Error("A variável de ambiente VITE_API_KEY está ausente. Por favor, configure-a.");
     }
 
     if (!aiInstance) {
