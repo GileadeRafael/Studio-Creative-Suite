@@ -6,7 +6,6 @@ import { Modal } from './components/Modal';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
-import { ConfigurationError } from './components/ConfigurationError';
 import { generateImage as generateImageFromApi, editImage, fileToBase64 } from './services/geminiService';
 import { authService } from './services/authService';
 import { GeneratedImage, AspectRatio, User } from './types';
@@ -156,6 +155,34 @@ const AppContent: React.FC = () => {
         </div>
       )}
     </>
+  );
+};
+
+const ConfigurationError: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center h-screen bg-black text-white p-4">
+      <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center shadow-2xl">
+        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h1 className="mt-4 text-3xl font-bold text-gray-100">Configuration Error</h1>
+        <p className="mt-4 text-gray-400">
+          The application is missing a required configuration.
+        </p>
+        <div className="mt-6 text-left bg-zinc-800 p-4 rounded-md">
+          <p className="font-semibold text-lg text-gray-200">Missing API Key</p>
+          <p className="mt-2 text-gray-400 text-sm">
+            The <code className="bg-zinc-700 text-amber-400 px-1 py-0.5 rounded-sm font-mono">API_KEY</code> environment variable is not set. This key is required to communicate with the AI service.
+          </p>
+          <p className="mt-3 text-gray-400 text-sm">
+            Please make sure you have set up your environment variables correctly. If you are developing locally, you might need to create a <code className="bg-zinc-700 text-amber-400 px-1 py-0.5 rounded-sm font-mono">.env</code> file.
+          </p>
+        </div>
+        <p className="mt-6 text-xs text-gray-500">
+          After setting the variable, you may need to restart the application.
+        </p>
+      </div>
+    </div>
   );
 };
 
