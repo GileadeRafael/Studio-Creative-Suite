@@ -59,7 +59,11 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, nu
     }
   } catch (error) {
     console.error("Erro ao gerar imagem com o Gemini:", error);
-    throw new Error(`Falha ao gerar a imagem. ${error.message.includes("API key not valid") ? "Sua chave de API parece ser inválida." : "Verifique seu prompt e tente novamente."}`);
+    if (error instanceof Error && (error.message.toLowerCase().includes("api key not valid") || error.message.toLowerCase().includes("permission denied"))) {
+        throw new Error("Falha na autenticação. Verifique se sua VITE_API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Falha ao gerar a imagem. Detalhe: ${errorMessage}`);
   }
 };
 
@@ -98,6 +102,10 @@ export const editImage = async (prompt: string, referenceImages: {data: string, 
         }
     } catch (error) {
         console.error("Erro ao editar imagem com o Gemini:", error);
-        throw new Error(`Falha ao editar a imagem. ${error.message.includes("API key not valid") ? "Sua chave de API parece ser inválida." : "Verifique seu prompt e tente novamente."}`);
+        if (error instanceof Error && (error.message.toLowerCase().includes("api key not valid") || error.message.toLowerCase().includes("permission denied"))) {
+            throw new Error("Falha na autenticação. Verifique se sua VITE_API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+        }
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Falha ao editar a imagem. Detalhe: ${errorMessage}`);
     }
 };
