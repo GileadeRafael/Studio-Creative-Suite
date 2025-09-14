@@ -42,8 +42,32 @@ const AppContent: React.FC = () => {
         console.error("Failed to save projects to localStorage. Data might be too large.", e);
         setError("Could not save the new data to the browser's storage, it might be full.");
       }
+    } else if (currentUser && projects.length === 0) {
+      // If all projects are deleted, ensure localStorage is cleared for this user
+      localStorage.removeItem(`studio-projects-${currentUser.email}`);
     }
   }, [projects, currentUser]);
+  
+  // This effect ensures that if the active project is deleted,
+  // we automatically select a valid one.
+  useEffect(() => {
+      if (activeProjectId && !projects.find(p => p.id === activeProjectId)) {
+          if (projects.length > 0) {
+              setActiveProjectId(projects[0].id);
+          } else {
+              // This case is handled by auto-creation, but as a safeguard:
+              const newProject: Project = {
+                  id: `proj-${Date.now()}`,
+                  name: 'My First Project',
+                  images: [],
+                  createdAt: new Date().toISOString(),
+              };
+              setProjects([newProject]);
+              setActiveProjectId(newProject.id);
+          }
+      }
+  }, [projects, activeProjectId]);
+
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -148,7 +172,7 @@ const AppContent: React.FC = () => {
       setProjects(prevProjects => {
           const isDefaultName = activeProject && (activeProject.name.startsWith('Project ') || activeProject.name === 'My First Project' || activeProject.name === 'Migrated Project');
           const shouldUpdateName = isDefaultName && activeProject.images.length === 0;
-          const newName = shouldUpdateName ? prompt.split(' ').slice(0, 4).join(' ') + '...' : activeProject?.name;
+          const newName = shouldUpdateName ? prompt.split(' ').slice(0, 4).join(' ') : activeProject?.name;
 
           return prevProjects.map(p => 
               p.id === activeProjectId
@@ -208,12 +232,34 @@ const AppContent: React.FC = () => {
 
 
   const handleDeleteImage = useCallback((id: string) => {
-    setProjects(prevProjects => prevProjects.map(p =>
-        p.id === activeProjectId
-            ? { ...p, images: p.images.filter(img => img.id !== id) }
-            : p
-    ));
+    setProjects(prevProjects => {
+        const projectToUpdate = prevProjects.find(p => p.id === activeProjectId);
+        if (!projectToUpdate) return prevProjects;
+
+        const updatedImages = projectToUpdate.images.filter(img => img.id !== id);
+
+        // If the project becomes empty, filter it out
+        if (updatedImages.length === 0) {
+            const remainingProjects = prevProjects.filter(p => p.id !== activeProjectId);
+            // If it was the last project, create a new default one
+            if (remainingProjects.length === 0) {
+                return [{
+                    id: `proj-${Date.now()}`,
+                    name: 'My First Project',
+                    images: [],
+                    createdAt: new Date().toISOString(),
+                }];
+            }
+            return remainingProjects;
+        }
+
+        // Otherwise, just update the images of the current project
+        return prevProjects.map(p =>
+            p.id === activeProjectId ? { ...p, images: updatedImages } : p
+        );
+    });
   }, [activeProjectId]);
+
 
   const handleToggleFavorite = useCallback((id: string) => {
     setProjects(prevProjects => prevProjects.map(p =>
@@ -239,35 +285,6 @@ const AppContent: React.FC = () => {
     setActiveProjectId(id);
   }, []);
 
-  const handleRenameProject = useCallback((projectId: string, newName: string) => {
-    setProjects(prevProjects => prevProjects.map(p =>
-      p.id === projectId ? { ...p, name: newName } : p
-    ));
-  }, []);
-
-  const handleDeleteProject = useCallback((projectId: string) => {
-    setProjects(prevProjects => {
-      const remainingProjects = prevProjects.filter(p => p.id !== projectId);
-
-      if (remainingProjects.length === 0) {
-        const newProject: Project = {
-          id: `proj-${Date.now()}`,
-          name: `My First Project`,
-          images: [],
-          createdAt: new Date().toISOString(),
-        };
-        setActiveProjectId(newProject.id);
-        return [newProject];
-      }
-
-      if (activeProjectId === projectId) {
-        setActiveProjectId(remainingProjects[0].id);
-      }
-      
-      return remainingProjects;
-    });
-  }, [activeProjectId]);
-
   const handleCloseModal = useCallback(() => {
     setSelectedImage(null);
   }, []);
@@ -292,8 +309,6 @@ const AppContent: React.FC = () => {
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
             onCreateProject={handleCreateProject}
-            onRenameProject={handleRenameProject}
-            onDeleteProject={handleDeleteProject}
           />
           <div className="flex flex-col flex-1">
             {isLoading && <Loader />}
