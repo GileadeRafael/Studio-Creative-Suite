@@ -58,7 +58,7 @@ const AppContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [galleryView, setGalleryView] = useState<'all' | 'favorites'>('all');
-  const [supabaseConfigError, setSupabaseConfigError] = useState<'load' | 'create' | null>(null);
+  const [supabaseCorsError, setSupabaseCorsError] = useState<boolean>(false);
 
   // Gerencia a sessão do usuário e carrega os dados
   useEffect(() => {
@@ -98,33 +98,36 @@ const AppContent: React.FC = () => {
       }
   }, [projects, activeProjectId]);
 
+  const handleSupabaseError = (fetchError: any, context: string): string => {
+    console.error(`Supabase error during ${context}:`, fetchError);
+  
+    if (fetchError.message.includes('Failed to fetch')) {
+      setSupabaseCorsError(true);
+      return `Erro de Conexão (CORS): Não foi possível conectar ao Supabase. Verifique se o domínio do aplicativo está adicionado às "Allowed Origins (CORS)" nas configurações da API do seu projeto Supabase.`;
+    }
+  
+    const isPermissionsError = fetchError.code === '42501' || (fetchError.message && (fetchError.message.includes('permission denied') || fetchError.message.includes('policy') || fetchError.message.includes('RLS')));
+    if (isPermissionsError) {
+      return `Erro de permissão no banco de dados. Verifique se as políticas de RLS (Row Level Security) estão configuradas corretamente no Supabase para permitir ${context}.`;
+    }
+    
+    let errorMessage = `Erro ao ${context}: ${fetchError.message || 'Ocorreu um erro de banco de dados desconhecido.'}`;
+    if (fetchError.details) errorMessage += `\nDetalhes: ${fetchError.details}`;
+    if (fetchError.hint) errorMessage += `\nHINT: ${fetchError.hint}`;
+    
+    return errorMessage;
+  };
+
   const fetchUserProjects = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('projects')
       .select('*, images(*)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .order('created_at', { foreignTable: 'images', ascending: false });
 
-    if (error) {
-      // Log the full error object to the console for inspection
-      console.error("Supabase fetch projects error object:", error);
-      
-      const isPermissionsError = error.code === '42501' || 
-                                 (error.message && (error.message.includes('permission denied') || 
-                                                    error.message.includes('policy') || 
-                                                    error.message.includes('RLS')));
-
-      if (error.message.includes('Failed to fetch') || isPermissionsError) {
-        setSupabaseConfigError('load');
-        return [];
-      }
-      
-      let errorMessage = `Error loading projects: ${error.message || 'An unknown database error occurred.'}`;
-      if (error.details) errorMessage += `\nDetails: ${error.details}`;
-      if (error.hint) errorMessage += `\nHINT: ${error.hint}`;
-      
-      setError(errorMessage);
+    if (fetchError) {
+      setError(handleSupabaseError(fetchError, "carregar projetos"));
       return [];
     }
     return data || [];
@@ -134,11 +137,8 @@ const AppContent: React.FC = () => {
     setCurrentUser(user);
     const userProjects = await fetchUserProjects(user.id);
 
-    // Se um erro de configuração foi detectado, pare a execução aqui.
-    if (supabaseConfigError) return;
-
-    if (userProjects.length === 0) {
-        const newProject = await handleCreateProject(true); // create a project without setting state yet
+    if (userProjects.length === 0 && !error) { // Apenas cria se não houver erro de carregamento
+        const newProject = await handleCreateProject(true);
         if(newProject) {
             setProjects([newProject]);
             setActiveProjectId(newProject.id!);
@@ -156,7 +156,7 @@ const AppContent: React.FC = () => {
   
   const handleGenerate = useCallback(async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number, options: GenerationOptions) => {
     if (!activeProjectId || !currentUser) {
-        setError("No active project selected. Please create or select a project first.");
+        setError("Nenhum projeto ativo selecionado. Por favor, crie ou selecione um projeto primeiro.");
         return;
     }
     setIsLoading(true);
@@ -372,7 +372,6 @@ const AppContent: React.FC = () => {
         .single();
 
       if (insertError) {
-        // Lança o erro para ser pego pelo bloco catch
         throw insertError;
       }
       if (!data) {
@@ -389,37 +388,8 @@ const AppContent: React.FC = () => {
       setActiveProjectId(newProject.id!);
       return newProject;
 
-    } catch (err) {
-        console.error("Supabase create project error object:", err);
-
-        let message = "An unknown error occurred while creating a project.";
-        let showConfigGuide = false;
-
-        if (err && typeof err === 'object' && 'message' in err) {
-            const supabaseError = err as { message: string, code?: string, details?: string, hint?: string };
-
-            const isPermissionsError = supabaseError.code === '42501' || 
-                                    (supabaseError.message && (supabaseError.message.includes('permission denied') || 
-                                                                supabaseError.message.includes('policy') ||
-                                                                supabaseError.message.includes('RLS')));
-            
-            if ((err as Error).message.includes('Failed to fetch') || isPermissionsError) {
-                showConfigGuide = true;
-            } else {
-                message = `Failed to create project: ${supabaseError.message}`;
-                if (supabaseError.details) message += `\nDetails: ${supabaseError.details}`;
-                if (supabaseError.hint) message += `\nHINT: ${supabaseError.hint}`;
-            }
-        } else if (err instanceof Error) {
-            message = `Failed to create project: ${err.message}`;
-        }
-
-        if (showConfigGuide) {
-            setSupabaseConfigError("create");
-            return;
-        }
-        
-        setError(message);
+    } catch (err: any) {
+      setError(handleSupabaseError(err, "criar projeto"));
     } finally {
       if (!returnOnly) {
         setIsCreatingProject(false);
@@ -484,6 +454,10 @@ const AppContent: React.FC = () => {
     setSelectedImage(null);
   }, []);
   
+  if (supabaseCorsError) {
+    return <SupabaseErrorGuide />;
+  }
+
   if (isLoading && view !== 'app') {
     return <Loader />;
   }
@@ -493,10 +467,6 @@ const AppContent: React.FC = () => {
   }
   if (view === 'signup') {
     return <SignupPage onNavigateToLogin={() => setView('login')} />;
-  }
-  
-  if (supabaseConfigError) {
-      return <SupabaseErrorGuide errorType={supabaseConfigError} />;
   }
 
   const activeProject = projects.find(p => p.id === activeProjectId);
