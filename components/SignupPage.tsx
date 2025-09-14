@@ -45,7 +45,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
         photoBase64 = `data:${photoFile.type};base64,${base64String}`;
       }
       
-      const user = authService.signup(username, email, password, photoBase64);
+      const user = await authService.signup(username, email, password, photoBase64);
       onSignup(user);
     } catch (err) {
       setError(err.message);

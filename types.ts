@@ -1,6 +1,4 @@
-// As definições de tipo para import.meta.env são manipuladas pelo Vite.
-// Manter esta declaração pode causar conflitos ou confusão.
-// FIX: Uncommented to provide type definitions for process.env, which is now used for the API key as per guidelines.
+// As variáveis de ambiente são injetadas no process.env pela configuração `define` do Vite.
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
@@ -18,7 +16,7 @@ export enum AspectRatio {
 }
 
 export interface GeneratedImage {
-  id: string;
+  id?: string; // ID é opcional até ser salvo no DB
   url: string;
   enhancedUrl?: string;
   prompt: string;
@@ -29,13 +27,15 @@ export interface GeneratedImage {
     data: string;
     mimeType: string;
   }[];
+  project_id?: string; // Chave estrangeira
+  created_at?: string;
 }
 
 export interface Project {
-  id: string;
+  id?: string; // ID é opcional até ser salvo no DB
   name: string;
   images: GeneratedImage[];
-  createdAt: string;
+  created_at?: string; // ISO string
 }
 
 export interface User {

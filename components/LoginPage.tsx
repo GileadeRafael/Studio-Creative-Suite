@@ -18,7 +18,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
     setError(null);
     setIsLoading(true);
     try {
-      const user = authService.login(email, password);
+      const user = await authService.login(email, password);
       onLogin(user);
     } catch (err) {
       setError(err.message);

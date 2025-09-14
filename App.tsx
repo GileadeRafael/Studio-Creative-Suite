@@ -9,12 +9,41 @@ import { SignupPage } from './components/SignupPage';
 import { ProjectsSidebar } from './components/ProjectsSidebar';
 import { generateImage, editImage, enhanceImage, fileToBase64 } from './services/geminiService';
 import { authService } from './services/authService';
+import { supabase } from './services/supabaseClient';
 import { GeneratedImage, AspectRatio, User, Project } from './types';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 interface GenerationOptions {
   files?: File[];
   referenceImages?: { data: string; mimeType: string }[];
 }
+
+const API_KEY = process.env.API_KEY;
+
+const EnvVarsChecker: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !API_KEY) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-black text-white p-4">
+                <div className="w-full max-w-lg rounded-lg bg-zinc-900 p-8 text-center border border-zinc-700 shadow-2xl">
+                    <h1 className="text-2xl font-bold text-red-500">Erro de Configuração</h1>
+                    <p className="mt-4 text-zinc-300">
+                        O aplicativo não está configurado corretamente. Por favor, certifique-se de que as seguintes variáveis de ambiente estejam definidas:
+                    </p>
+                    <ul className="mt-6 space-y-2 text-left text-zinc-400 bg-zinc-800 p-4 rounded-md">
+                        <li className="font-mono flex items-center">{SUPABASE_URL ? '✅' : '❌'} <span className="ml-3">VITE_SUPABASE_URL</span></li>
+                        <li className="font-mono flex items-center">{SUPABASE_ANON_KEY ? '✅' : '❌'} <span className="ml-3">VITE_SUPABASE_ANON_KEY</span></li>
+                        <li className="font-mono flex items-center">{API_KEY ? '✅' : '❌'} <span className="ml-3">API_KEY</span></li>
+                    </ul>
+                    <p className="mt-6 text-sm text-zinc-500">
+                        Essas variáveis devem ser definidas em um arquivo <code>.env</code> na raiz do projeto. Após adicioná-las, pode ser necessário reiniciar o servidor de desenvolvimento.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return <>{children}</>;
+};
 
 const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'signup' | 'app'>('login');
@@ -27,94 +56,87 @@ const AppContent: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [galleryView, setGalleryView] = useState<'all' | 'favorites'>('all');
 
+  // Gerencia a sessão do usuário e carrega os dados
   useEffect(() => {
-    const user = authService.getCurrentUser();
-    if (user) {
-      handleLogin(user);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentUser && projects.length > 0) {
-      try {
-        localStorage.setItem(`studio-projects-${currentUser.email}`, JSON.stringify(projects));
-      } catch (e) {
-        console.error("Failed to save projects to localStorage. Data might be too large.", e);
-        setError("Could not save the new data to the browser's storage, it might be full.");
+    const checkUser = async () => {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        await handleLogin(user);
+      } else {
+        setView('login');
       }
-    } else if (currentUser && projects.length === 0) {
-      // If all projects are deleted, ensure localStorage is cleared for this user
-      localStorage.removeItem(`studio-projects-${currentUser.email}`);
-    }
-  }, [projects, currentUser]);
+    };
+    checkUser();
+
+    // Ouve mudanças no estado de autenticação
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            username: session.user.user_metadata.username,
+            photoURL: session.user.user_metadata.photo_url,
+          };
+          await handleLogin(user);
+        } else {
+          handleLogout();
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
   
-  // This effect ensures that if the active project is deleted,
-  // we automatically select a valid one.
+  // Garante que um projeto ativo seja selecionado se o atual for removido
   useEffect(() => {
       if (activeProjectId && !projects.find(p => p.id === activeProjectId)) {
           if (projects.length > 0) {
               setActiveProjectId(projects[0].id);
           } else {
-              // This case is handled by auto-creation, but as a safeguard:
-              const newProject: Project = {
-                  id: `proj-${Date.now()}`,
-                  name: 'My First Project',
-                  images: [],
-                  createdAt: new Date().toISOString(),
-              };
-              setProjects([newProject]);
-              setActiveProjectId(newProject.id);
+             // Caso todos os projetos sejam deletados, um novo é criado
+             handleCreateProject();
           }
       }
   }, [projects, activeProjectId]);
 
+  const fetchUserProjects = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*, images(*, project_id)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .order('created_at', { foreignTable: 'images', ascending: false });
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    let userProjects: Project[] = [];
-    const projectsData = localStorage.getItem(`studio-projects-${user.email}`);
-
-    if (projectsData) {
-        userProjects = JSON.parse(projectsData);
-    } else {
-        const oldImagesData = localStorage.getItem(`studio-images-${user.email}`);
-        if (oldImagesData) {
-            const oldImages = JSON.parse(oldImagesData);
-            if (oldImages.length > 0) {
-                const migratedProject: Project = {
-                    id: `proj-${Date.now()}`,
-                    name: 'Migrated Project',
-                    images: oldImages,
-                    createdAt: new Date().toISOString(),
-                };
-                userProjects.push(migratedProject);
-            }
-            localStorage.removeItem(`studio-images-${user.email}`);
-        }
+    if (error) {
+      console.error("Error fetching projects:", error);
+      setError("Failed to load your projects.");
+      return [];
     }
+    return data || [];
+  };
+
+  const handleLogin = async (user: User) => {
+    setCurrentUser(user);
+    const userProjects = await fetchUserProjects(user.id);
 
     if (userProjects.length === 0) {
-        const defaultProject: Project = {
-            id: `proj-${Date.now()}`,
-            name: 'My First Project',
-            images: [],
-            createdAt: new Date().toISOString(),
-        };
-        userProjects.push(defaultProject);
+        const newProject = await handleCreateProject(true); // create a project without setting state yet
+        if(newProject) {
+            setProjects([newProject]);
+            setActiveProjectId(newProject.id!);
+        }
+    } else {
+        setProjects(userProjects);
+        setActiveProjectId(userProjects[0]?.id || null);
     }
-
-    userProjects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    setProjects(userProjects);
-    setActiveProjectId(userProjects[0]?.id || null);
     setView('app');
   };
 
-  const handleLogout = () => {
-    if (currentUser) {
-        localStorage.setItem(`studio-projects-${currentUser.email}`, JSON.stringify(projects));
-    }
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     setCurrentUser(null);
     setProjects([]);
     setActiveProjectId(null);
@@ -122,7 +144,7 @@ const AppContent: React.FC = () => {
   };
   
   const handleGenerate = useCallback(async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number, options: GenerationOptions) => {
-    if (!activeProjectId) {
+    if (!activeProjectId || !currentUser) {
         setError("No active project selected. Please create or select a project first.");
         return;
     }
@@ -132,7 +154,7 @@ const AppContent: React.FC = () => {
     const activeProject = projects.find(p => p.id === activeProjectId);
 
     try {
-      let imagesToAdd: GeneratedImage[] = [];
+      let imagesData: Omit<GeneratedImage, 'id' | 'created_at'>[] = [];
       let referenceImages: { data: string; mimeType: string }[] | undefined = undefined;
       
       if (options.files && options.files.length > 0) {
@@ -148,38 +170,56 @@ const AppContent: React.FC = () => {
 
       if (referenceImages) {
         const imageUrl = await editImage(prompt, referenceImages);
-        imagesToAdd.push({
-          id: new Date().toISOString() + Math.random(),
+        imagesData.push({
           url: imageUrl,
-          prompt: prompt,
-          aspectRatio: aspectRatio,
-          referenceImages: referenceImages,
+          prompt,
+          aspectRatio,
+          referenceImages,
           isFavorite: false,
           isEnhanced: false,
+          project_id: activeProjectId,
         });
       } else {
         const imageUrls = await generateImage(prompt, aspectRatio, numberOfImages);
-        imagesToAdd = imageUrls.map(url => ({
-          id: new Date().toISOString() + Math.random(),
-          url: url,
-          prompt: prompt,
-          aspectRatio: aspectRatio,
+        imagesData = imageUrls.map(url => ({
+          url,
+          prompt,
+          aspectRatio,
           isFavorite: false,
           isEnhanced: false,
+          project_id: activeProjectId,
         }));
       }
 
-      setProjects(prevProjects => {
-          const isDefaultName = activeProject && (activeProject.name.startsWith('Project ') || activeProject.name === 'My First Project' || activeProject.name === 'Migrated Project');
-          const shouldUpdateName = isDefaultName && activeProject.images.length === 0;
-          const newName = shouldUpdateName ? prompt.split(' ').slice(0, 4).join(' ') : activeProject?.name;
+      // Salva as novas imagens no Supabase
+      const { data: newImages, error: insertError } = await supabase
+        .from('images')
+        .insert(imagesData.map(img => ({...img, user_id: currentUser.id})))
+        .select();
 
-          return prevProjects.map(p => 
-              p.id === activeProjectId
-                  ? { ...p, name: newName || p.name, images: [...imagesToAdd, ...p.images] }
-                  : p
-          );
-      });
+      if (insertError || !newImages) {
+        throw new Error(insertError?.message || "Failed to save new images.");
+      }
+      
+      // Lógica de Smart Naming
+      const isDefaultName = activeProject && (activeProject.name.startsWith('Project ') || activeProject.name === 'My First Project');
+      const shouldUpdateName = isDefaultName && activeProject.images.length === 0;
+      let newName = activeProject?.name;
+
+      if (shouldUpdateName) {
+        newName = prompt.split(' ').slice(0, 4).join(' ');
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({ name: newName })
+          .eq('id', activeProjectId);
+        if (updateError) console.error("Failed to update project name:", updateError);
+      }
+
+      setProjects(prevProjects => prevProjects.map(p => 
+          p.id === activeProjectId
+              ? { ...p, name: newName || p.name, images: [...newImages, ...p.images] }
+              : p
+      ));
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
@@ -187,7 +227,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeProjectId, projects]);
+  }, [activeProjectId, projects, currentUser]);
 
   const handleCreateVariation = useCallback((image: GeneratedImage) => {
     setSelectedImage(null);
@@ -199,6 +239,7 @@ const AppContent: React.FC = () => {
   }, [handleGenerate]);
 
   const handleEnhanceImage = useCallback(async (image: GeneratedImage) => {
+    if (!image.id) return;
     setIsEnhancing(true);
     setError(null);
     try {
@@ -208,11 +249,18 @@ const AppContent: React.FC = () => {
         
         const enhancedImageUrl = await enhanceImage({ data, mimeType });
 
-        const updatedImage: GeneratedImage = { 
-            ...image, 
-            enhancedUrl: enhancedImageUrl, 
-            isEnhanced: true 
-        };
+        const { data: updatedImageData, error: updateError } = await supabase
+            .from('images')
+            .update({ enhancedUrl: enhancedImageUrl, isEnhanced: true })
+            .eq('id', image.id)
+            .select()
+            .single();
+
+        if (updateError || !updatedImageData) {
+            throw new Error(updateError?.message || "Failed to save enhanced image.");
+        }
+
+        const updatedImage: GeneratedImage = updatedImageData;
 
         setProjects(prevProjects => prevProjects.map(p =>
             p.id === activeProjectId
@@ -230,56 +278,88 @@ const AppContent: React.FC = () => {
     }
   }, [activeProjectId]);
 
-
-  const handleDeleteImage = useCallback((id: string) => {
+  const handleDeleteImage = useCallback(async (id: string) => {
+    // Deleta do DB
+    const { error } = await supabase.from('images').delete().eq('id', id);
+    if (error) {
+      setError("Failed to delete the image.");
+      return;
+    }
+    
+    // Atualiza o estado local
     setProjects(prevProjects => {
         const projectToUpdate = prevProjects.find(p => p.id === activeProjectId);
         if (!projectToUpdate) return prevProjects;
 
         const updatedImages = projectToUpdate.images.filter(img => img.id !== id);
 
-        // If the project becomes empty, filter it out
         if (updatedImages.length === 0) {
-            const remainingProjects = prevProjects.filter(p => p.id !== activeProjectId);
-            // If it was the last project, create a new default one
-            if (remainingProjects.length === 0) {
-                return [{
-                    id: `proj-${Date.now()}`,
-                    name: 'My First Project',
-                    images: [],
-                    createdAt: new Date().toISOString(),
-                }];
-            }
-            return remainingProjects;
+            // Deleta o projeto do DB se estiver vazio
+            supabase.from('projects').delete().eq('id', activeProjectId!).then();
+            return prevProjects.filter(p => p.id !== activeProjectId);
         }
 
-        // Otherwise, just update the images of the current project
         return prevProjects.map(p =>
             p.id === activeProjectId ? { ...p, images: updatedImages } : p
         );
     });
   }, [activeProjectId]);
 
+  const handleToggleFavorite = useCallback(async (id: string) => {
+    const project = projects.find(p => p.id === activeProjectId);
+    const image = project?.images.find(img => img.id === id);
+    if (!image) return;
 
-  const handleToggleFavorite = useCallback((id: string) => {
+    const newIsFavorite = !image.isFavorite;
+
+    // Atualiza o DB
+    const { error } = await supabase
+      .from('images')
+      .update({ is_favorite: newIsFavorite })
+      .eq('id', id);
+
+    if (error) {
+      setError("Failed to update favorite status.");
+      return;
+    }
+
+    // Atualiza o estado local
     setProjects(prevProjects => prevProjects.map(p =>
         p.id === activeProjectId
-            ? { ...p, images: p.images.map(img => img.id === id ? { ...img, isFavorite: !img.isFavorite } : img) }
+            ? { ...p, images: p.images.map(img => img.id === id ? { ...img, isFavorite: newIsFavorite } : img) }
             : p
     ));
-  }, [activeProjectId]);
+  }, [activeProjectId, projects]);
 
-  const handleCreateProject = useCallback(() => {
-    const newProject: Project = {
-        id: `proj-${Date.now()}`,
+  const handleCreateProject = useCallback(async (returnOnly = false) => {
+    if (!currentUser) return;
+    
+    const newProjectData = {
         name: `Project ${projects.length + 1}`,
-        images: [],
-        createdAt: new Date().toISOString(),
+        user_id: currentUser.id,
     };
-    const updatedProjects = [newProject, ...projects];
-    setProjects(updatedProjects);
-    setActiveProjectId(newProject.id);
-  }, [projects]);
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(newProjectData)
+      .select()
+      .single();
+
+    if (error || !data) {
+        setError("Failed to create a new project.");
+        return;
+    }
+
+    const newProject: Project = { ...data, images: [] };
+    
+    if (returnOnly) {
+      return newProject;
+    }
+
+    setProjects(prev => [newProject, ...prev]);
+    setActiveProjectId(newProject.id!);
+  }, [projects, currentUser]);
+
 
   const handleSelectProject = useCallback((id: string) => {
     setActiveProjectId(id);
@@ -310,7 +390,7 @@ const AppContent: React.FC = () => {
             onSelectProject={handleSelectProject}
             onCreateProject={handleCreateProject}
           />
-          <div className="flex flex-col flex-1">
+          <div className="flex flex-col flex-1 pl-28">
             {isLoading && <Loader />}
             {selectedImage && (
               <Modal 
@@ -341,7 +421,7 @@ const AppContent: React.FC = () => {
               />
             </main>
 
-            <footer className="fixed bottom-0 left-0 right-0 z-20 p-4">
+            <footer className="fixed bottom-0 left-28 right-0 z-20 p-4">
               <div className="max-w-6xl mx-auto border-t border-zinc-800 pt-4">
                   {error && <div className="mb-2 p-3 bg-red-900/70 text-red-300 border border-red-700 rounded-md text-sm">{error}</div>}
                   <PromptForm onGenerate={handleGenerate} isLoading={isLoading} />
@@ -355,7 +435,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  return <AppContent />;
+  return (
+    <EnvVarsChecker>
+      <AppContent />
+    </EnvVarsChecker>
+  );
 };
 
 export default App;
