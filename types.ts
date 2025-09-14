@@ -20,13 +20,22 @@ export enum AspectRatio {
 export interface GeneratedImage {
   id: string;
   url: string;
+  enhancedUrl?: string;
   prompt: string;
   aspectRatio: AspectRatio;
   isFavorite?: boolean;
+  isEnhanced?: boolean;
   referenceImages?: {
     data: string;
     mimeType: string;
   }[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  images: GeneratedImage[];
+  createdAt: string;
 }
 
 export interface User {

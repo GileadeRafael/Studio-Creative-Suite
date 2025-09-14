@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const loadingMessages = [
@@ -7,7 +6,11 @@ const loadingMessages = [
   "Weaving digital threads of creativity...",
   "Consulting with the muse of machines...",
   "Painting with algorithmic brushes...",
-  "This might take a moment, great art needs patience."
+  "This might take a moment, great art needs patience.",
+  "Sharpening details and enhancing resolution...",
+  "Applying advanced enhancement algorithms...",
+  "Upscaling image for maximum clarity...",
+  "Adding the final touches of polish..."
 ];
 
 export const Loader: React.FC = () => {

@@ -135,3 +135,47 @@ export const editImage = async (prompt: string, referenceImages: {data: string, 
         throw new Error(`Falha ao editar a imagem. Detalhe: ${errorMessage}`);
     }
 };
+
+export const enhanceImage = async (referenceImage: {data: string, mimeType: string}): Promise<string> => {
+    const ai = getAiClient();
+    const prompt = "Upscale and enhance this image to the highest possible quality, aiming for a 4K resolution look. Dramatically improve the sharpness, clarity, and level of detail. Correct colors to be more vibrant and lifelike, and perfect the lighting and contrast. Remove any digital noise, compression artifacts, or imperfections. The final image should be a significant and noticeable improvement over the original.";
+    
+    try {
+        const imagePart = {
+            inlineData: {
+                data: referenceImage.data,
+                mimeType: referenceImage.mimeType,
+            },
+        };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [
+                    imagePart,
+                    { text: prompt },
+                ],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        const returnedImagePart = response.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+        if (returnedImagePart && returnedImagePart.inlineData) {
+            const base64ImageBytes = returnedImagePart.inlineData.data;
+            const mimeType = returnedImagePart.inlineData.mimeType;
+            return `data:${mimeType};base64,${base64ImageBytes}`;
+        } else {
+            const textResponse = response.candidates?.[0]?.content?.parts.find(part => part.text)?.text;
+            throw new Error(`A melhoria da imagem falhou. Resposta da IA: ${textResponse || 'Nenhuma imagem retornada.'}`);
+        }
+    } catch (error) {
+        console.error("Erro ao melhorar imagem com o Gemini:", error);
+        if (error instanceof Error && (error.message.toLowerCase().includes("api key not valid") || error.message.toLowerCase().includes("permission denied"))) {
+            throw new Error("Falha na autenticação. Verifique se sua API_KEY está correta e se a API Generative Language está ativada em seu projeto Google Cloud.");
+        }
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Falha ao melhorar a imagem. Detalhe: ${errorMessage}`);
+    }
+};

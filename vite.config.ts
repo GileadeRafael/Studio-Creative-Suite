@@ -1,9 +1,11 @@
+// FIX: Removed the failing triple-slash directive for node types.
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default ({ mode }) => {
   // Carrega variáveis de ambiente (ex: de um arquivo .env) para o ambiente Node.js do Vite.
-  const env = loadEnv(mode, process.cwd(), '');
+  // FIX: Use a type assertion to work around missing Node.js types for `process.cwd()`.
+  const env = loadEnv(mode, (process as any).cwd(), '');
 
   return defineConfig({
     plugins: [react()],

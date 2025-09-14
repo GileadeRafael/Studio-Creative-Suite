@@ -8,8 +8,13 @@ const USERS_KEY = 'studio-users';
 const CURRENT_USER_KEY = 'studio-currentUser';
 
 const getStoredUsers = (): (User & { password: string })[] => {
-    const usersJson = localStorage.getItem(USERS_KEY);
-    return usersJson ? JSON.parse(usersJson) : [];
+    try {
+        const usersJson = localStorage.getItem(USERS_KEY);
+        return usersJson ? JSON.parse(usersJson) : [];
+    } catch (error) {
+        console.error("Failed to read users from localStorage. It might be disabled.", error);
+        return []; // Return empty array if localStorage is not accessible.
+    }
 };
 
 const defaultPhotoURL = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0EwQTBCNiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgMy0zLTEuMzQtMy0zIDEuMzQtMyAzLTN6bTAgMTRjLTIuMDMgMC0zLjgyLS44Ny01LjE0LTIuMjZsMS40Mi0xLjQyQzkuMSAxMy4xIDEwLjUgMTQgMTIgMTQuMDFjMS41IDAgMi45LS45MSAzLjcyLTIuMjdsMS40MiAxLjQyQzE1LjgxIDE4LjEzIDE0LjA0IDE5IDEyIDE5eiIvPjwvc3ZnPg==';
@@ -32,11 +37,15 @@ export const authService = {
     };
 
     users.push(newUser);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    
-    // Automatically log in the new user
     const { password: _, ...userToStore } = newUser;
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+
+    try {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+    } catch (error) {
+        console.error("Failed to save user to localStorage. It might be disabled.", error);
+        throw new Error('Não foi possível salvar a conta. O armazenamento do navegador pode estar desativado ou cheio.');
+    }
     
     return userToStore;
   },
@@ -50,25 +59,37 @@ export const authService = {
     }
 
     const { password: _, ...userToStore } = user;
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+    try {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+    } catch (error) {
+        console.error("Failed to save current user to localStorage. It might be disabled.", error);
+        throw new Error('Não foi possível iniciar a sessão. O armazenamento do navegador pode estar desativado ou cheio.');
+    }
     return userToStore;
   },
 
   logout: (): void => {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    try {
+        localStorage.removeItem(CURRENT_USER_KEY);
+    } catch (error) {
+        console.error("Failed to remove current user from localStorage.", error);
+    }
   },
 
   getCurrentUser: (): User | null => {
-    const userJson = localStorage.getItem(CURRENT_USER_KEY);
-    if (!userJson) return null;
-
     try {
-      return JSON.parse(userJson);
+        const userJson = localStorage.getItem(CURRENT_USER_KEY);
+        if (!userJson) return null;
+        return JSON.parse(userJson);
     } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      // Clean up corrupted data
-      localStorage.removeItem(CURRENT_USER_KEY);
-      return null;
+        console.error("Failed to parse user from localStorage", error);
+        // Clean up corrupted data
+        try {
+            localStorage.removeItem(CURRENT_USER_KEY);
+        } catch (removeError) {
+            console.error("Failed to remove corrupted user data from localStorage", removeError);
+        }
+        return null;
     }
   },
 };
