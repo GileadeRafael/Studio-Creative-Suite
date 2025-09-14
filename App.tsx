@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { PromptForm } from './components/PromptForm';
 import { ImageGallery } from './components/ImageGallery';
@@ -7,6 +8,7 @@ import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
 import { ProjectsSidebar } from './components/ProjectsSidebar';
+import { SupabaseErrorGuide } from './components/SupabaseErrorGuide';
 import { generateImage, editImage, enhanceImage, fileToBase64 } from './services/geminiService';
 import { authService } from './services/authService';
 import { supabase } from './services/supabaseClient';
@@ -51,19 +53,18 @@ const AppContent: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true); // Começa como true
+  const [isCreatingProject, setIsCreatingProject] = useState<boolean>(false);
   const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [galleryView, setGalleryView] = useState<'all' | 'favorites'>('all');
+  const [supabaseConfigError, setSupabaseConfigError] = useState<'load' | 'create' | null>(null);
 
   // Gerencia a sessão do usuário e carrega os dados
   useEffect(() => {
-    // Ouve mudanças no estado de autenticação.
-    // 'INITIAL_SESSION' é disparado na primeira vez.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
-          // Usuário está logado ou a sessão foi restaurada.
           const user: User = {
             id: session.user.id,
             email: session.user.email!,
@@ -72,13 +73,12 @@ const AppContent: React.FC = () => {
           };
           await handleLogin(user);
         } else {
-          // Usuário não está logado.
           setCurrentUser(null);
           setProjects([]);
           setActiveProjectId(null);
           setView('login');
         }
-        setIsLoading(false); // Para de carregar após a sessão ser tratada
+        setIsLoading(false);
       }
     );
 
@@ -93,7 +93,6 @@ const AppContent: React.FC = () => {
           if (projects.length > 0) {
               setActiveProjectId(projects[0].id);
           } else {
-             // Caso todos os projetos sejam deletados, um novo é criado
              handleCreateProject();
           }
       }
@@ -102,14 +101,30 @@ const AppContent: React.FC = () => {
   const fetchUserProjects = async (userId: string) => {
     const { data, error } = await supabase
       .from('projects')
-      .select('*, images(*, project_id)')
+      .select('*, images(*)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .order('created_at', { foreignTable: 'images', ascending: false });
 
     if (error) {
-      console.error("Error fetching projects:", error);
-      setError("Failed to load your projects.");
+      // Log the full error object to the console for inspection
+      console.error("Supabase fetch projects error object:", error);
+      
+      const isPermissionsError = error.code === '42501' || 
+                                 (error.message && (error.message.includes('permission denied') || 
+                                                    error.message.includes('policy') || 
+                                                    error.message.includes('RLS')));
+
+      if (error.message.includes('Failed to fetch') || isPermissionsError) {
+        setSupabaseConfigError('load');
+        return [];
+      }
+      
+      let errorMessage = `Error loading projects: ${error.message || 'An unknown database error occurred.'}`;
+      if (error.details) errorMessage += `\nDetails: ${error.details}`;
+      if (error.hint) errorMessage += `\nHINT: ${error.hint}`;
+      
+      setError(errorMessage);
       return [];
     }
     return data || [];
@@ -118,6 +133,9 @@ const AppContent: React.FC = () => {
   const handleLogin = async (user: User) => {
     setCurrentUser(user);
     const userProjects = await fetchUserProjects(user.id);
+
+    // Se um erro de configuração foi detectado, pare a execução aqui.
+    if (supabaseConfigError) return;
 
     if (userProjects.length === 0) {
         const newProject = await handleCreateProject(true); // create a project without setting state yet
@@ -133,7 +151,6 @@ const AppContent: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    // A atualização do estado da UI será tratada pelo listener onAuthStateChange
     await authService.logout();
   };
   
@@ -148,7 +165,7 @@ const AppContent: React.FC = () => {
     const activeProject = projects.find(p => p.id === activeProjectId);
 
     try {
-      let imagesData: Omit<GeneratedImage, 'id' | 'created_at'>[] = [];
+      let imagesData: Omit<GeneratedImage, 'id' | 'created_at' | 'user_id'>[] = [];
       let referenceImages: { data: string; mimeType: string }[] | undefined = undefined;
       
       if (options.files && options.files.length > 0) {
@@ -185,7 +202,6 @@ const AppContent: React.FC = () => {
         }));
       }
 
-      // Salva as novas imagens no Supabase
       const { data: newImages, error: insertError } = await supabase
         .from('images')
         .insert(imagesData.map(img => ({...img, user_id: currentUser.id})))
@@ -195,23 +211,19 @@ const AppContent: React.FC = () => {
         throw new Error(insertError?.message || "Failed to save new images.");
       }
       
-      // Lógica de Smart Naming
       const isDefaultName = activeProject && (activeProject.name.startsWith('Project ') || activeProject.name === 'My First Project');
       const shouldUpdateName = isDefaultName && activeProject.images.length === 0;
       let newName = activeProject?.name;
 
       if (shouldUpdateName) {
         newName = prompt.split(' ').slice(0, 4).join(' ');
-        const { error: updateError } = await supabase
-          .from('projects')
-          .update({ name: newName })
-          .eq('id', activeProjectId);
-        if (updateError) console.error("Failed to update project name:", updateError);
+        await handleUpdateProjectName(activeProjectId, newName);
+        // The state update is handled by handleUpdateProjectName, so we just need the new name for the current operation
       }
 
       setProjects(prevProjects => prevProjects.map(p => 
           p.id === activeProjectId
-              ? { ...p, name: newName || p.name, images: [...newImages, ...p.images] }
+              ? { ...p, name: shouldUpdateName ? (newName || p.name) : p.name, images: [...newImages, ...p.images] }
               : p
       ));
 
@@ -273,31 +285,46 @@ const AppContent: React.FC = () => {
   }, [activeProjectId]);
 
   const handleDeleteImage = useCallback(async (id: string) => {
-    // Deleta do DB
-    const { error } = await supabase.from('images').delete().eq('id', id);
-    if (error) {
-      setError("Failed to delete the image.");
-      return;
+    if (!activeProjectId) return;
+
+    const originalProjects = projects;
+    const projectToUpdate = originalProjects.find(p => p.id === activeProjectId);
+    if (!projectToUpdate) return;
+
+    const updatedImages = projectToUpdate.images.filter(img => img.id !== id);
+    const shouldDeleteProject = updatedImages.length === 0;
+
+    // Optimistically update UI
+    if (shouldDeleteProject) {
+        setProjects(prev => prev.filter(p => p.id !== activeProjectId));
+    } else {
+        setProjects(prev => prev.map(p =>
+            p.id === activeProjectId ? { ...p, images: updatedImages } : p
+        ));
     }
     
-    // Atualiza o estado local
-    setProjects(prevProjects => {
-        const projectToUpdate = prevProjects.find(p => p.id === activeProjectId);
-        if (!projectToUpdate) return prevProjects;
+    // Perform DB operations
+    const { error: deleteImageError } = await supabase.from('images').delete().eq('id', id);
 
-        const updatedImages = projectToUpdate.images.filter(img => img.id !== id);
+    if (deleteImageError) {
+        setError(`Failed to delete image: ${deleteImageError.message}`);
+        setProjects(originalProjects); // Revert on failure
+        return;
+    }
 
-        if (updatedImages.length === 0) {
-            // Deleta o projeto do DB se estiver vazio
-            supabase.from('projects').delete().eq('id', activeProjectId!).then();
-            return prevProjects.filter(p => p.id !== activeProjectId);
+    if (shouldDeleteProject) {
+        const { error: deleteProjectError } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', activeProjectId);
+        
+        if (deleteProjectError) {
+            setError(`Image deleted, but failed to delete empty project: ${deleteProjectError.message}`);
+            // Don't revert here as the image is already gone. The app state is mostly correct,
+            // but an empty project might reappear on next full refresh. The error message is key.
         }
-
-        return prevProjects.map(p =>
-            p.id === activeProjectId ? { ...p, images: updatedImages } : p
-        );
-    });
-  }, [activeProjectId]);
+    }
+  }, [activeProjectId, projects]);
 
   const handleToggleFavorite = useCallback(async (id: string) => {
     const project = projects.find(p => p.id === activeProjectId);
@@ -306,7 +333,6 @@ const AppContent: React.FC = () => {
 
     const newIsFavorite = !image.isFavorite;
 
-    // Atualiza o DB
     const { error } = await supabase
       .from('images')
       .update({ is_favorite: newIsFavorite })
@@ -317,7 +343,6 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    // Atualiza o estado local
     setProjects(prevProjects => prevProjects.map(p =>
         p.id === activeProjectId
             ? { ...p, images: p.images.map(img => img.id === id ? { ...img, isFavorite: newIsFavorite } : img) }
@@ -325,34 +350,130 @@ const AppContent: React.FC = () => {
     ));
   }, [activeProjectId, projects]);
 
-  const handleCreateProject = useCallback(async (returnOnly = false) => {
-    if (!currentUser) return;
-    
-    const newProjectData = {
-        name: `Project ${projects.length + 1}`,
+  const handleCreateProject = useCallback(async (returnOnly = false): Promise<Project | undefined> => {
+    if (!currentUser || isCreatingProject) return;
+
+    if (!returnOnly) {
+      setIsCreatingProject(true);
+      setError(null);
+    }
+
+    try {
+      const isFirstProject = projects.length === 0;
+      const newProjectData = {
+        name: isFirstProject ? 'My First Project' : `Project ${projects.length + 1}`,
         user_id: currentUser.id,
-    };
+      };
 
-    const { data, error } = await supabase
-      .from('projects')
-      .insert(newProjectData)
-      .select()
-      .single();
+      const { data, error: insertError } = await supabase
+        .from('projects')
+        .insert(newProjectData)
+        .select()
+        .single();
 
-    if (error || !data) {
-        setError("Failed to create a new project.");
+      if (insertError) {
+        // Lança o erro para ser pego pelo bloco catch
+        throw insertError;
+      }
+      if (!data) {
+        throw new Error("Failed to create a new project: no data returned.");
+      }
+
+      const newProject: Project = { ...data, images: [] };
+
+      if (returnOnly) {
+        return newProject;
+      }
+
+      setProjects(prev => [newProject, ...prev]);
+      setActiveProjectId(newProject.id!);
+      return newProject;
+
+    } catch (err) {
+        console.error("Supabase create project error object:", err);
+
+        let message = "An unknown error occurred while creating a project.";
+        let showConfigGuide = false;
+
+        if (err && typeof err === 'object' && 'message' in err) {
+            const supabaseError = err as { message: string, code?: string, details?: string, hint?: string };
+
+            const isPermissionsError = supabaseError.code === '42501' || 
+                                    (supabaseError.message && (supabaseError.message.includes('permission denied') || 
+                                                                supabaseError.message.includes('policy') ||
+                                                                supabaseError.message.includes('RLS')));
+            
+            if ((err as Error).message.includes('Failed to fetch') || isPermissionsError) {
+                showConfigGuide = true;
+            } else {
+                message = `Failed to create project: ${supabaseError.message}`;
+                if (supabaseError.details) message += `\nDetails: ${supabaseError.details}`;
+                if (supabaseError.hint) message += `\nHINT: ${supabaseError.hint}`;
+            }
+        } else if (err instanceof Error) {
+            message = `Failed to create project: ${err.message}`;
+        }
+
+        if (showConfigGuide) {
+            setSupabaseConfigError("create");
+            return;
+        }
+        
+        setError(message);
+    } finally {
+      if (!returnOnly) {
+        setIsCreatingProject(false);
+      }
+    }
+  }, [projects, currentUser, isCreatingProject]);
+
+  const handleDeleteProject = useCallback(async (projectId: string) => {
+    if (!window.confirm("Tem certeza de que deseja excluir este projeto e todas as suas imagens? Esta ação é permanente.")) {
         return;
     }
-
-    const newProject: Project = { ...data, images: [] };
     
-    if (returnOnly) {
-      return newProject;
-    }
+    const originalProjects = [...projects];
 
-    setProjects(prev => [newProject, ...prev]);
-    setActiveProjectId(newProject.id!);
-  }, [projects, currentUser]);
+    // Optimistic update
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+
+    const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+    if (error) {
+        setError(`Failed to delete project: ${error.message}`);
+        setProjects(originalProjects); // Revert on failure
+        console.error("Failed to delete project:", error);
+    }
+  }, [projects]);
+
+
+  const handleUpdateProjectName = async (projectId: string, newName: string) => {
+    if (!newName.trim()) {
+        setError("Project name cannot be empty.");
+        return;
+    }
+    
+    const originalProjects = [...projects];
+    
+    // Optimistic update
+    setProjects(prevProjects => prevProjects.map(p =>
+        p.id === projectId ? { ...p, name: newName.trim() } : p
+    ));
+    
+    const { error: updateError } = await supabase
+        .from('projects')
+        .update({ name: newName.trim() })
+        .eq('id', projectId);
+        
+    if (updateError) {
+        setError(`Failed to rename project: ${updateError.message}`);
+        setProjects(originalProjects); // Revert on failure
+        console.error("Failed to update project name:", updateError);
+    }
+  };
 
 
   const handleSelectProject = useCallback((id: string) => {
@@ -363,7 +484,6 @@ const AppContent: React.FC = () => {
     setSelectedImage(null);
   }, []);
   
-  // Renderiza um loader global enquanto a sessão inicial é verificada
   if (isLoading && view !== 'app') {
     return <Loader />;
   }
@@ -373,6 +493,10 @@ const AppContent: React.FC = () => {
   }
   if (view === 'signup') {
     return <SignupPage onNavigateToLogin={() => setView('login')} />;
+  }
+  
+  if (supabaseConfigError) {
+      return <SupabaseErrorGuide errorType={supabaseConfigError} />;
   }
 
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -388,6 +512,7 @@ const AppContent: React.FC = () => {
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
             onCreateProject={handleCreateProject}
+            onDeleteProject={handleDeleteProject}
           />
           <div className="flex flex-col flex-1 pl-28">
             {isLoading && <Loader />}
@@ -408,6 +533,8 @@ const AppContent: React.FC = () => {
               onLogout={handleLogout}
               onShowLibrary={() => setGalleryView('favorites')}
               onShowAll={() => setGalleryView('all')}
+              activeProject={activeProject}
+              onUpdateProjectName={handleUpdateProjectName}
             />
 
             <main className="flex-1 overflow-y-auto pt-20 pb-40 px-6 md:px-8 lg:px-10">
@@ -422,7 +549,7 @@ const AppContent: React.FC = () => {
 
             <footer className="fixed bottom-0 left-28 right-0 z-20 p-4">
               <div className="max-w-6xl mx-auto border-t border-zinc-800 pt-4">
-                  {error && <div className="mb-2 p-3 bg-red-900/70 text-red-300 border border-red-700 rounded-md text-sm">{error}</div>}
+                  {error && <div className="mb-2 p-3 bg-red-900/70 text-red-300 border border-red-700 rounded-md text-sm whitespace-pre-wrap">{error}</div>}
                   <PromptForm onGenerate={handleGenerate} isLoading={isLoading} />
               </div>
             </footer>

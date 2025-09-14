@@ -11,12 +11,16 @@ interface ImageCardProps {
 export const ImageCard: React.FC<ImageCardProps> = ({ image, onImageSelect, onDelete, onToggleFavorite }) => {
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation(); // Impede que o modal abra
-    onDelete(image.id);
+    if (image.id && window.confirm("Tem certeza que deseja deletar esta imagem? Esta ação não pode ser desfeita.")) {
+      onDelete(image.id);
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation(); // Impede que o modal abra
-    onToggleFavorite(image.id);
+    if (image.id) {
+        onToggleFavorite(image.id);
+    }
   };
   
   return (

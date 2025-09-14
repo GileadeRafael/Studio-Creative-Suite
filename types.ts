@@ -28,6 +28,7 @@ export interface GeneratedImage {
     mimeType: string;
   }[];
   project_id?: string; // Chave estrangeira
+  user_id?: string; // Chave estrangeira
   created_at?: string;
 }
 
