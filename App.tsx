@@ -239,6 +239,35 @@ const AppContent: React.FC = () => {
     setActiveProjectId(id);
   }, []);
 
+  const handleRenameProject = useCallback((projectId: string, newName: string) => {
+    setProjects(prevProjects => prevProjects.map(p =>
+      p.id === projectId ? { ...p, name: newName } : p
+    ));
+  }, []);
+
+  const handleDeleteProject = useCallback((projectId: string) => {
+    setProjects(prevProjects => {
+      const remainingProjects = prevProjects.filter(p => p.id !== projectId);
+
+      if (remainingProjects.length === 0) {
+        const newProject: Project = {
+          id: `proj-${Date.now()}`,
+          name: `My First Project`,
+          images: [],
+          createdAt: new Date().toISOString(),
+        };
+        setActiveProjectId(newProject.id);
+        return [newProject];
+      }
+
+      if (activeProjectId === projectId) {
+        setActiveProjectId(remainingProjects[0].id);
+      }
+      
+      return remainingProjects;
+    });
+  }, [activeProjectId]);
+
   const handleCloseModal = useCallback(() => {
     setSelectedImage(null);
   }, []);
@@ -263,6 +292,8 @@ const AppContent: React.FC = () => {
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
             onCreateProject={handleCreateProject}
+            onRenameProject={handleRenameProject}
+            onDeleteProject={handleDeleteProject}
           />
           <div className="flex flex-col flex-1">
             {isLoading && <Loader />}
