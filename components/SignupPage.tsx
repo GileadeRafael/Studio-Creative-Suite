@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
-import { fileToBase64 } from '../services/geminiService';
+import { ImageCropper } from './ImageCropper';
 
 interface SignupPageProps {
   onNavigateToLogin: () => void;
@@ -10,22 +10,32 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin }) => 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
+        setImageToCrop(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+    // Reset the input value to allow selecting the same file again
+    e.target.value = '';
+  };
+  
+  const handleCropComplete = (croppedImageDataUrl: string) => {
+    setPhotoPreview(croppedImageDataUrl);
+    setImageToCrop(null); // Close cropper
+  };
+
+  const handleCropCancel = () => {
+    setImageToCrop(null); // Close cropper
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,15 +48,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin }) => 
     setIsLoading(true);
 
     try {
-      let photoBase64: string | undefined = undefined;
-      if (photoFile) {
-        const base64String = await fileToBase64(photoFile);
-        photoBase64 = `data:${photoFile.type};base64,${base64String}`;
-      }
-      
-      await authService.signup(username, email, password, photoBase64);
+      // The photoPreview state holds the base64 data URL from the cropper,
+      // which is exactly what Supabase expects for the photo_url metadata.
+      await authService.signup(username, email, password, photoPreview || undefined);
       setSignupSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
         setIsLoading(false);
@@ -55,6 +61,13 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin }) => 
 
   return (
     <div className="flex min-h-screen bg-black text-white">
+      {imageToCrop && (
+        <ImageCropper 
+          imageSrc={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
       <div className="flex-1 hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-zinc-900 via-black to-red-900/50 text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-zinc-800/20 [mask-image:linear-gradient(to_bottom,white_20%,transparent_70%)]"></div>
         <div className="relative z-10">
