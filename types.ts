@@ -15,33 +15,34 @@ export enum AspectRatio {
   PORTRAIT_TALL = '9:16',
 }
 
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  photoURL?: string;
+}
+
 export interface GeneratedImage {
-  id?: string; // ID é opcional até ser salvo no DB
+  id: string;
   url: string;
   enhancedUrl?: string;
   prompt: string;
   aspectRatio: AspectRatio;
-  isFavorite?: boolean;
-  isEnhanced?: boolean;
+  isFavorite: boolean;
+  isEnhanced: boolean;
   referenceImages?: {
     data: string;
     mimeType: string;
   }[];
-  project_id?: string; // Chave estrangeira
-  user_id?: string; // Chave estrangeira
   created_at?: string;
+  user_id?: string;
+  project_id?: string;
 }
-
+// FIX: Added the missing 'Project' type definition to resolve an import error in ProjectsSidebar.tsx.
 export interface Project {
-  id?: string; // ID é opcional até ser salvo no DB
+  id: string;
   name: string;
   images: GeneratedImage[];
-  created_at?: string; // ISO string
-}
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  photoURL: string;
+  created_at?: string;
+  user_id?: string;
 }
