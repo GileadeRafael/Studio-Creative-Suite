@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
-import { User } from '../types';
 
 interface LoginPageProps {
-  onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignup }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToSignup }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +16,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigateToSignu
     setError(null);
     setIsLoading(true);
     try {
-      const user = await authService.login(email, password);
-      onLogin(user);
+      await authService.login(email, password);
+      // A navegação e atualização do estado do usuário serão tratadas pelo listener onAuthStateChange no App.tsx
     } catch (err) {
       setError(err.message);
     } finally {

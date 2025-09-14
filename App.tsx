@@ -50,7 +50,7 @@ const AppContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Começa como true
   const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
@@ -58,20 +58,12 @@ const AppContent: React.FC = () => {
 
   // Gerencia a sessão do usuário e carrega os dados
   useEffect(() => {
-    const checkUser = async () => {
-      const user = await authService.getCurrentUser();
-      if (user) {
-        await handleLogin(user);
-      } else {
-        setView('login');
-      }
-    };
-    checkUser();
-
-    // Ouve mudanças no estado de autenticação
+    // Ouve mudanças no estado de autenticação.
+    // 'INITIAL_SESSION' é disparado na primeira vez.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
+          // Usuário está logado ou a sessão foi restaurada.
           const user: User = {
             id: session.user.id,
             email: session.user.email!,
@@ -80,8 +72,13 @@ const AppContent: React.FC = () => {
           };
           await handleLogin(user);
         } else {
-          handleLogout();
+          // Usuário não está logado.
+          setCurrentUser(null);
+          setProjects([]);
+          setActiveProjectId(null);
+          setView('login');
         }
+        setIsLoading(false); // Para de carregar após a sessão ser tratada
       }
     );
 
@@ -136,11 +133,8 @@ const AppContent: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // A atualização do estado da UI será tratada pelo listener onAuthStateChange
     await authService.logout();
-    setCurrentUser(null);
-    setProjects([]);
-    setActiveProjectId(null);
-    setView('login');
   };
   
   const handleGenerate = useCallback(async (prompt: string, aspectRatio: AspectRatio, numberOfImages: number, options: GenerationOptions) => {
@@ -368,12 +362,17 @@ const AppContent: React.FC = () => {
   const handleCloseModal = useCallback(() => {
     setSelectedImage(null);
   }, []);
+  
+  // Renderiza um loader global enquanto a sessão inicial é verificada
+  if (isLoading && view !== 'app') {
+    return <Loader />;
+  }
 
   if (view === 'login') {
-    return <LoginPage onLogin={handleLogin} onNavigateToSignup={() => setView('signup')} />;
+    return <LoginPage onNavigateToSignup={() => setView('signup')} />;
   }
   if (view === 'signup') {
-    return <SignupPage onSignup={handleLogin} onNavigateToLogin={() => setView('login')} />;
+    return <SignupPage onNavigateToLogin={() => setView('login')} />;
   }
 
   const activeProject = projects.find(p => p.id === activeProjectId);

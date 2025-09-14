@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
-import { User } from '../types';
 import { fileToBase64 } from '../services/geminiService';
 
 interface SignupPageProps {
-  onSignup: (user: User) => void;
   onNavigateToLogin: () => void;
 }
 
-export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLogin }) => {
+export const SignupPage: React.FC<SignupPageProps> = ({ onNavigateToLogin }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,8 +43,8 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigateToLo
         photoBase64 = `data:${photoFile.type};base64,${base64String}`;
       }
       
-      const user = await authService.signup(username, email, password, photoBase64);
-      onSignup(user);
+      await authService.signup(username, email, password, photoBase64);
+      // A navegação e atualização do estado do usuário serão tratadas pelo listener onAuthStateChange no App.tsx
     } catch (err) {
       setError(err.message);
     } finally {
