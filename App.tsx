@@ -72,6 +72,7 @@ const AppContent: React.FC = () => {
             photoURL: session.user.user_metadata.photo_url,
           };
           await handleLogin(user);
+          setView('app');
         } else {
           setCurrentUser(null);
           setProjects([]);
@@ -147,7 +148,6 @@ const AppContent: React.FC = () => {
         setProjects(userProjects);
         setActiveProjectId(userProjects[0]?.id || null);
     }
-    setView('app');
   };
 
   const handleLogout = async () => {
@@ -458,7 +458,7 @@ const AppContent: React.FC = () => {
     return <SupabaseErrorGuide />;
   }
 
-  if (isLoading && view !== 'app') {
+  if (isLoading) {
     return <Loader />;
   }
 
